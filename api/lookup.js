@@ -8,7 +8,7 @@
 // Then returns the batch data back to the browser.
 // ─────────────────────────────────────────────────────────
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // Allow the browser to call this function
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
