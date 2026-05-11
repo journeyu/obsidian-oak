@@ -1,39 +1,29 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Obsidian & Oak Batch Lookup</title>
-    <style>
-        body { font-family: sans-serif; background: #fdfaf6; color: #2d2d2d; padding: 50px; text-align: center; }
-        .box { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); max-width: 400px; margin: auto; }
-        input { padding: 10px; width: 80%; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px; }
-        button { background: #4a4a4a; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
-        #result { margin-top: 20px; text-align: left; font-size: 14px; }
-    </style>
-</head>
-<body>
+<script>
+    // Replace these with your actual IDs
+    const API_TOKEN = '17dfddc89c13a9fb453fec48aa6140810fdcb12ea18b47af98346bd5ffc1fa25';
+    const COLLECTION_ID = '6a014264e69761b517e03796';
 
-    <div class="box">
-        <h2>Batch Provenance</h2>
-        <input type="text" id="batchId" placeholder="Enter Batch ID (e.g. B-101)">
-        <button onclick="findBatch()">Look Up</button>
-        <div id="result"></div>
-    </div>
+    async function findBatch() {
+        const input = document.getElementById('batchId').value;
+        const display = document.getElementById('result');
+        display.innerHTML = "Searching...";
 
-    <script>
-        const API_TOKEN = '17dfddc89c13a9fb453fec48aa6140810fdcb12ea18b47af98346bd5ffc1fa25';
-        const COLLECTION_ID = '6a014264e69761b517e03796';
-
-        async function findBatch() {
-            const input = document.getElementById('batchId').value;
-            const display = document.getElementById('result');
-            display.innerHTML = "Searching...";
-
-            const response = await fetch(`https://corsproxy.io/https://api.webflow.com/v2/collections/${COLLECTION_ID}/items`, {
-                headers: { 'Authorization': `Bearer ${API_TOKEN}` }
+        try {
+            // We use the proxy to get around the CORS "policeman"
+            const response = await fetch(`https://corsproxy.io/?https://api.webflow.com/v2/collections/${COLLECTION_ID}/items`, {
+                headers: { 
+                    'Authorization': `Bearer ${API_TOKEN}`,
+                    'accept': 'application/json'
+                }
             });
+
+            if (!response.ok) {
+                throw new Error("HTTP error! status: " + response.status);
+            }
+
             const data = await response.json();
             
-            // Look for a match in our Webflow list
+            // Look for the item where the name matches the user input
             const match = data.items.find(item => item.fieldData.name === input);
 
             if (match) {
@@ -44,12 +34,13 @@
                     <p><b>Artisan ID:</b> ${match.fieldData['artisan']}</p>
                 `;
             } else {
-            display.innerHTML = "❌ Batch not found (Check the Batch ID spelling).";
+                display.innerHTML = "❌ Batch not found. Check your spelling!";
+            }
+
+        } catch (error) {
+            // This is the part that was causing the error before
+            console.error("The error is:", error);
+            display.innerHTML = "⚠️ Error: " + error.message;
         }
-    } catch (error) {
-        display.innerHTML = "⚠️ Error: " + error.message;
-    }
-}
-    </script>
-</body>
-</html>
+    } // This bracket closes the findBatch function
+</script>
