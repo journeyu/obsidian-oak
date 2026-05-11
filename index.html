@@ -28,7 +28,7 @@
             const display = document.getElementById('result');
             display.innerHTML = "Searching...";
 
-            const response = await fetch(`https://api.webflow.com/v2/collections/${COLLECTION_ID}/items`, {
+            const response = await fetch(`https://corsproxy.io/https://api.webflow.com/v2/collections/${COLLECTION_ID}/items`, {
                 headers: { 'Authorization': `Bearer ${API_TOKEN}` }
             });
             const data = await response.json();
@@ -44,9 +44,12 @@
                     <p><b>Artisan ID:</b> ${match.fieldData['artisan']}</p>
                 `;
             } else {
-                display.innerHTML = "❌ Batch not found.";
-            }
+            display.innerHTML = "❌ Batch not found (Check the Batch ID spelling).";
         }
+    } catch (error) {
+        display.innerHTML = "⚠️ Error: " + error.message;
+    }
+}
     </script>
 </body>
 </html>
