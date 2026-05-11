@@ -1,38 +1,29 @@
 // api/lookup.js
-// ─────────────────────────────────────────────────────────
-// This is a Vercel Serverless Function.
-// It runs on the SERVER — the browser never sees the token.
-//
-// The browser calls:  GET /api/lookup?batchId=OAK-2024-001
-// This function calls: Webflow API (with secret token)
-// Then returns the batch data back to the browser.
-// ─────────────────────────────────────────────────────────
 
 module.exports = async function handler(req, res) {
-  // Allow the browser to call this function
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET');
 
-  // Get the batchId from the URL: /api/lookup?batchId=OAK-2024-001
-  const { batchId } = req.query;
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+
+  // Get the batch ID from the URL e.g. /api/lookup?batchId=OAK-2024-001
+  const batchId = req.query.batchId;
 
   if (!batchId) {
-    return res.status(400).json({ error: 'Missing batchId parameter' });
+    return res.status(400).json({ error: 'Please provide a batchId in the URL.' });
   }
 
-  // ✅ Token and Collection ID come from Vercel Environment Variables
-  // They are NEVER visible in the browser or in your GitHub code
-  const token          = process.env.WEBFLOW_API_TOKEN;
-  const batchesColId   = process.env.WEBFLOW_COLLECTION_ID;
-  const artisansColId  = process.env.WEBFLOW_ARTISANS_COLLECTION_ID; // optional
+  // These come from Vercel Environment Variables — never hardcode them here
+  const token        = process.env.WEBFLOW_API_TOKEN;
+  const collectionId = process.env.WEBFLOW_COLLECTION_ID;
 
   if (!token || !collectionId) {
-    return res.status(500).json({ error: 'Server is missing environment variables. Check Vercel settings.' });
+    return res.status(500).json({ error: 'Missing environment variables in Vercel settings.' });
   }
 
   try {
-    // Step 1: Fetch all batches from Webflow CMS
-    const batchResponse = await fetch(
+
+    // Fetch all items from your Webflow CMS collection
+    const response = await fetch(
       `https://api.webflow.com/v2/collections/${collectionId}/items?limit=100`,
       {
         headers: {
@@ -42,53 +33,40 @@ module.exports = async function handler(req, res) {
       }
     );
 
-    if (!batchResponse.ok) {
-      const errText = await batchResponse.text();
-      return res.status(batchResponse.status).json({ error: `Webflow error: ${errText}` });
+    // If Webflow returns an error, show it clearly
+    if (!response.ok) {
+      const body = await response.text();
+      return res.status(response.status).json({
+        error: `Webflow error ${response.status}`,
+        detail: body,
+        hint:
+          response.status === 401 ? 'API token is wrong. Check WEBFLOW_API_TOKEN in Vercel.' :
+          response.status === 403 ? 'Free Webflow plan does not allow API access. Upgrade to Basic.' :
+          response.status === 404 ? 'Collection ID is wrong. Check WEBFLOW_COLLECTION_ID in Vercel.' :
+          'See detail above.'
+      });
     }
 
-    const batchData = await batchResponse.json();
+    const data = await response.json();
+    const items = data.items || [];
 
-    // Step 2: Find the batch that matches the entered Batch ID
-    // Searches by 'batch-id' field (not 'name') — case-insensitive
-    const match = batchData.items?.find(item =>
-      item.fieldData['batch-id']?.toLowerCase() === batchId.toLowerCase()
+    // Search for the item whose batch-id field matches what the user typed
+    const match = items.find(item =>
+      (item.fieldData['batch-id'] || '').toLowerCase() === batchId.toLowerCase()
     );
 
     if (!match) {
-      return res.status(404).json({ error: 'Batch not found' });
+      return res.status(404).json({
+        error: `No batch found for "${batchId}"`,
+        available: items.map(i => i.fieldData['batch-id']).filter(Boolean)
+      });
     }
 
-    // Step 3: If the batch has an artisan linked, fetch artisan data too
-    let artisanData = null;
-    const artisanRef = match.fieldData['artisan']; // the Reference field value (an item ID)
-
-    if (artisanRef) {
-      // Artisan reference is a Webflow item ID — fetch it directly
-      const artisanResponse = await fetch(
-        `https://api.webflow.com/v2/collections/${collectionId}/items/${artisanRef}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'accept-version': '2.0.0',
-          }
-        }
-      );
-
-      if (artisanResponse.ok) {
-        const artisanJson = await artisanResponse.json();
-        artisanData = artisanJson.fieldData || null;
-      }
-    }
-
-    // Step 4: Return batch data + artisan data to the browser
-    return res.status(200).json({
-      ...match.fieldData,
-      artisan: artisanData,
-    });
+    // Return the matched batch data
+    return res.status(200).json(match.fieldData);
 
   } catch (err) {
-    console.error('Lookup error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: err.message });
   }
-}
+
+};
