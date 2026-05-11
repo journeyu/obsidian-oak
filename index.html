@@ -69,57 +69,61 @@
         const COLLECTION_ID = '6a014264e69761b517e03796';
 
         async function findBatch() {
-            const userInput = document.getElementById('batchInput').value.trim();
-            const resultDiv = document.getElementById('result');
-            
-            if (!userInput) {
-                resultDiv.innerHTML = "<p class='error'>Please enter a Batch ID.</p>";
-                return;
+    const userInput = document.getElementById('batchInput').value.trim();
+    const resultDiv = document.getElementById('result');
+    
+    if (!userInput) {
+        resultDiv.innerHTML = "<p class='error'>Please enter a Batch ID.</p>";
+        return;
+    }
+
+    resultDiv.innerHTML = "<em>Searching the archives...</em>";
+
+    // Use a slightly different proxy that is often more stable for Webflow
+    const targetUrl = `https://api.webflow.com/v2/collections/${COLLECTION_ID}/items`;
+    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+
+    try {
+        const response = await fetch(proxyUrl, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${API_TOKEN}`,
+                'Accept': 'application/json'
             }
+        });
 
-            resultDiv.innerHTML = "<em>Searching the archives...</em>";
-
-            try {
-                // Using the CORS proxy to allow the connection
-                const url = `https://corsproxy.io/?https://api.webflow.com/v2/collections/${COLLECTION_ID}/items`;
-                
-                const response = await fetch(url, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${API_TOKEN}`,
-                        'accept': 'application/json'
-                    }
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Connection failed (Status: ${response.status})`);
-                }
-
-                const data = await response.json();
-                
-                // We look for a match where the Name field equals what the user typed
-                const match = data.items.find(item => 
-                    item.fieldData.name.toLowerCase() === userInput.toLowerCase()
-                );
-
-                if (match) {
-                    resultDiv.innerHTML = `
-                        <div style="border-top: 1px solid #eee; padding-top: 15px;">
-                            <strong>Batch ID:</strong> ${match.fieldData.name}<br>
-                            <strong>Kiln Type:</strong> ${match.fieldData['kiln-type'] || 'N/A'}<br>
-                            <strong>Peak Temp:</strong> ${match.fieldData['peak-temperature'] || 'N/A'}°F<br>
-                            <strong>Artisan:</strong> ${match.fieldData['artisan'] || 'Hand-thrown'}
-                        </div>
-                    `;
-                } else {
-                    resultDiv.innerHTML = "<p class='error'>Batch ID not found in our records.</p>";
-                }
-
-            } catch (err) {
-                console.error("Technical Error:", err);
-                resultDiv.innerHTML = `<p class='error'>Error: ${err.message}</p>`;
-            }
+        if (response.status === 404) {
+            throw new Error("Collection Not Found. Double-check your ID and make sure the site is PUBLISHED.");
         }
+
+        if (!response.ok) {
+            throw new Error(`Webflow returned an error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        // Webflow v2 usually puts items inside a 'items' array
+        const match = data.items.find(item => 
+            item.fieldData.name.toLowerCase() === userInput.toLowerCase()
+        );
+
+        if (match) {
+            resultDiv.innerHTML = `
+                <div style="border-top: 1px solid #eee; padding-top: 15px;">
+                    <strong>Batch Found!</strong><br>
+                    <strong>Kiln:</strong> ${match.fieldData['kiln-type'] || 'Standard'}<br>
+                    <strong>Temp:</strong> ${match.fieldData['peak-temperature'] || '2000'}°F
+                </div>
+            `;
+        } else {
+            resultDiv.innerHTML = "<p class='error'>That Batch ID doesn't exist in your list.</p>";
+        }
+
+    } catch (err) {
+        console.error("Technical Error:", err);
+        resultDiv.innerHTML = `<p class='error'>⚠️ ${err.message}</p>`;
+    }
+}
     </script>
 </body>
 </html>
