@@ -22,8 +22,9 @@ module.exports = async function handler(req, res) {
 
   // ✅ Token and Collection ID come from Vercel Environment Variables
   // They are NEVER visible in the browser or in your GitHub code
-  const token        = process.env.17dfddc89c13a9fb453fec48aa6140810fdcb12ea18b47af98346bd5ffc1fa25;
-  const collectionId = process.env.6a014264e69761b517e03796;
+  const token          = process.env.WEBFLOW_API_TOKEN;
+  const batchesColId   = process.env.WEBFLOW_COLLECTION_ID;
+  const artisansColId  = process.env.WEBFLOW_ARTISANS_COLLECTION_ID; // optional
 
   if (!token || !collectionId) {
     return res.status(500).json({ error: 'Server is missing environment variables. Check Vercel settings.' });
