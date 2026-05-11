@@ -1,129 +1,169 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Obsidian & Oak | Provenance Tool</title>
-    <style>
-        /* This makes sure you actually see something on the screen */
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            background-color: #f4f1ee; 
-            color: #333; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            height: 100vh; 
-            margin: 0; 
-        }
-        .container { 
-            background: white; 
-            padding: 40px; 
-            border-radius: 15px; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
-            width: 100%; 
-            max-width: 400px; 
-            text-align: center; 
-        }
-        h1 { font-size: 1.5rem; margin-bottom: 20px; color: #1a1a1a; }
-        input { 
-            width: 80%; 
-            padding: 12px; 
-            border: 1px solid #ccc; 
-            border-radius: 8px; 
-            margin-bottom: 15px; 
-            font-size: 1rem;
-        }
-        button { 
-            background-color: #2c2c2c; 
-            color: white; 
-            border: none; 
-            padding: 12px 25px; 
-            border-radius: 8px; 
-            cursor: pointer; 
-            font-weight: bold;
-            transition: background 0.3s;
-        }
-        button:hover { background-color: #000; }
-        #result { margin-top: 25px; text-align: left; line-height: 1.6; }
-        .error { color: #d9534f; font-weight: bold; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Obsidian & Oak | Provenance Tool</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f4f1ee;
+      color: #333;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      padding: 40px;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 480px;
+      text-align: center;
+    }
+    h1 { font-size: 1.5rem; margin-bottom: 8px; color: #1a1a1a; }
+    .subtitle { font-size: 0.875rem; color: #888; margin-bottom: 24px; }
+    input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+      box-sizing: border-box;
+    }
+    input:focus { border-color: #2c2c2c; }
+    button {
+      background-color: #2c2c2c;
+      color: white;
+      border: none;
+      padding: 12px 28px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 0.95rem;
+      transition: background 0.2s;
+      width: 100%;
+    }
+    button:hover { background-color: #000; }
+    button:disabled { background-color: #aaa; cursor: not-allowed; }
+
+    #result { margin-top: 24px; text-align: left; line-height: 1.7; }
+    .error { color: #d9534f; font-weight: bold; text-align: center; }
+    .loading { color: #888; text-align: center; font-style: italic; }
+
+    .result-card {
+      border-top: 2px solid #2c2c2c;
+      padding-top: 16px;
+    }
+    .result-card h2 {
+      font-size: 1.1rem;
+      margin-bottom: 14px;
+      color: #1a1a1a;
+    }
+    .field-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-size: 0.9rem;
+    }
+    .field-label {
+      font-weight: 600;
+      color: #555;
+      min-width: 130px;
+      flex-shrink: 0;
+    }
+    .field-value { color: #222; }
+    .artisan-box {
+      margin-top: 16px;
+      padding: 14px;
+      background: #f9f7f5;
+      border-radius: 8px;
+      border: 1px solid #e8e4e0;
+    }
+    .artisan-box h3 { font-size: 0.85rem; color: #888; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px; }
+  </style>
 </head>
 <body>
+  <div class="container">
+    <h1>Obsidian &amp; Oak</h1>
+    <p class="subtitle">Ceramic Batch Provenance</p>
+    <input type="text" id="batchInput" placeholder="e.g. OAK-2024-001" />
+    <button id="searchBtn" onclick="findBatch()">Verify Provenance</button>
+    <div id="result"></div>
+  </div>
 
-    <div class="container">
-        <h1>Obsidian & Oak</h1>
-        <p>Enter your Batch ID below:</p>
-        <input type="text" id="batchInput" placeholder="e.g., B-101">
-        <br>
-        <button onclick="findBatch()">Verify Provenance</button>
-        
-        <div id="result">
-            <!-- Data will appear here -->
-        </div>
-    </div>
+  <script>
+    // ✅ NO API TOKEN HERE — it lives safely on the server (Vercel)
+    // The browser calls /api/lookup, which calls Webflow on the server side.
 
-    <script>
-        // 1. PUT YOUR REAL KEYS HERE
-        const API_TOKEN = '17dfddc89c13a9fb453fec48aa6140810fdcb12ea18b47af98346bd5ffc1fa25'; 
-        const COLLECTION_ID = '6a014264e69761b517e03796';
+    document.getElementById('batchInput').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') findBatch();
+    });
 
-        async function findBatch() {
-    const userInput = document.getElementById('batchInput').value.trim();
-    const resultDiv = document.getElementById('result');
-    
-    if (!userInput) {
+    async function findBatch() {
+      const userInput = document.getElementById('batchInput').value.trim();
+      const resultDiv = document.getElementById('result');
+      const btn = document.getElementById('searchBtn');
+
+      if (!userInput) {
         resultDiv.innerHTML = "<p class='error'>Please enter a Batch ID.</p>";
         return;
-    }
+      }
 
-    resultDiv.innerHTML = "<em>Searching the archives...</em>";
+      resultDiv.innerHTML = "<p class='loading'>Searching the archives...</p>";
+      btn.disabled = true;
 
-    // Use a slightly different proxy that is often more stable for Webflow
-    const targetUrl = `https://api.webflow.com/v2/collections/${COLLECTION_ID}/items`;
-    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-
-    try {
-        const response = await fetch(proxyUrl, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${API_TOKEN}`,
-                'Accept': 'application/json'
-            }
-        });
+      try {
+        // ✅ Calls YOUR Vercel function — not Webflow directly
+        const response = await fetch(`/api/lookup?batchId=${encodeURIComponent(userInput)}`);
 
         if (response.status === 404) {
-            throw new Error("Collection Not Found. Double-check your ID and make sure the site is PUBLISHED.");
+          resultDiv.innerHTML = "<p class='error'>No batch found with that ID. Try OAK-2024-001.</p>";
+          return;
         }
 
         if (!response.ok) {
-            throw new Error(`Webflow returned an error: ${response.status}`);
+          throw new Error(`Server error: ${response.status}`);
         }
 
         const data = await response.json();
-        
-        // Webflow v2 usually puts items inside a 'items' array
-        const match = data.items.find(item => 
-            item.fieldData.name.toLowerCase() === userInput.toLowerCase()
-        );
+        renderResult(data);
 
-        if (match) {
-            resultDiv.innerHTML = `
-                <div style="border-top: 1px solid #eee; padding-top: 15px;">
-                    <strong>Batch Found!</strong><br>
-                    <strong>Kiln:</strong> ${match.fieldData['kiln-type'] || 'Standard'}<br>
-                    <strong>Temp:</strong> ${match.fieldData['peak-temperature'] || '2000'}°F
-                </div>
-            `;
-        } else {
-            resultDiv.innerHTML = "<p class='error'>That Batch ID doesn't exist in your list.</p>";
-        }
-
-    } catch (err) {
-        console.error("Technical Error:", err);
+      } catch (err) {
         resultDiv.innerHTML = `<p class='error'>⚠️ ${err.message}</p>`;
+      } finally {
+        btn.disabled = false;
+      }
     }
-}
-    </script>
+
+    function renderResult(d) {
+      const artisanHtml = d.artisan ? `
+        <div class="artisan-box">
+          <h3>Artisan</h3>
+          <div class="field-row"><span class="field-label">Name</span><span class="field-value">${d.artisan.name || '—'}</span></div>
+          <div class="field-row"><span class="field-label">Specialty</span><span class="field-value">${d.artisan.specialty || '—'}</span></div>
+          <div class="field-row"><span class="field-label">Location</span><span class="field-value">${d.artisan.location || '—'}</span></div>
+        </div>` : '';
+
+      document.getElementById('result').innerHTML = `
+        <div class="result-card">
+          <h2>Batch Found ✓</h2>
+          <div class="field-row"><span class="field-label">Batch ID</span><span class="field-value">${d['batch-id'] || '—'}</span></div>
+          <div class="field-row"><span class="field-label">Kiln Type</span><span class="field-value">${d['kiln-type'] || '—'}</span></div>
+          <div class="field-row"><span class="field-label">Peak Temperature</span><span class="field-value">${d['peak-temperature'] || '—'}°C</span></div>
+          <div class="field-row"><span class="field-label">Clay Composition</span><span class="field-value">${d['clay-composition'] || '—'}</span></div>
+          <div class="field-row"><span class="field-label">Artisan Notes</span><span class="field-value">${d['artisan-notes'] || '—'}</span></div>
+          <div class="field-row"><span class="field-label">Firing Date</span><span class="field-value">${d['firing-date'] ? new Date(d['firing-date']).toLocaleDateString('en-GB', {day:'numeric',month:'long',year:'numeric'}) : '—'}</span></div>
+          ${artisanHtml}
+        </div>`;
+    }
+  </script>
 </body>
 </html>
